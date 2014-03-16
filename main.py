@@ -4,7 +4,7 @@ from __future__ import division, print_function, unicode_literals
 from numpy import *
 from wire_loops import wire_loop_field, TestWireLoop
 from const import *
-from numpy.random import rand, normal
+from numpy.random import rand, normal, randint
 from numpy.linalg import norm
 
 import unittest
@@ -220,21 +220,28 @@ def field_and_derivatives(x):
 def calc_derivatives(m, s, v, x, O, J):
     return (cross(O, s), -kReducedPlanckConstant / m * array(s * J)[0], v)
 
+always_adiabatic = True
+two_states = True
+
 def select_time_step(m, s, v, x, O, J):
     kMinStep = 1e-3
     kTimeDivider = 25
     kMinAdiabaticRatio = 25
 
+    def good_float(f):
+        return not isnan(f) and not isinf(f)
+
     t0 = 2 * kPi / norm(O)
+
+    if always_adiabatic:
+        return (kMinStep, True)
+
     o = array((t0 * J * matrix([v]).T)).T
     o = abs(o[0])
     t1 = 1/o[0]
     t2 = 1/o[1]
     t3 = 1/o[2]
     alpha = max([t1, t2, t3]) / t0
-
-    def good_float(f):
-        return not isnan(f) and not isinf(f)
 
     if dot(O, O) == 0:
         return (kMinStep, True)
@@ -296,8 +303,13 @@ if __name__ == "__main__":
         z = 0.05 + 1e-7
         p.position = array([x, y, z])
 
-        p.spin = array(random_point_on_sphere_surface(
-            radius=1/2, coordinates='cartesian'))
+        if two_states:
+            sign = -1 if randint(2) == 0 else 1
+            F = field(p.position)
+            p.spin = 1/2 * F / norm(F) * sign
+        else:
+            p.spin = array(random_point_on_sphere_surface(
+                radius=1/2, coordinates='cartesian'))
 
         kTemp = 1e-3
         p.velocity = normal(size=3) * sqrt(kBoltzmannConstant * kTemp / p.mass)
