@@ -226,7 +226,7 @@ two_states = True
 def select_time_step(m, s, v, x, O, J):
     kMinStep = 1e-3
     kTimeDivider = 25
-    kMinAdiabaticRatio = 25
+    kMinAdiabaticRatio = 10
 
     def good_float(f):
         return not isnan(f) and not isinf(f)
@@ -246,14 +246,18 @@ def select_time_step(m, s, v, x, O, J):
     if dot(O, O) == 0:
         return (kMinStep, True)
     else:
-        ts = [t0 / kTimeDivider,
+        ts = [kMinStep,
+              t0 / kTimeDivider,
               t1 / kTimeDivider,
               t2 / kTimeDivider,
-              t3 / kTimeDivider,
-              kMinStep]
+              t3 / kTimeDivider]
         ts = list(filter(good_float, ts))
+        mt = argmin(ts)
 
-        return (min(ts), alpha > kMinAdiabaticRatio)
+        if good_float(alpha) and alpha > kMinAdiabaticRatio:
+            return (kMinStep, True)
+        else:
+            return (min(ts), False)
 
 def integration_step(p):
     s, v, x, m = p.spin, p.velocity, p.position, p.mass
