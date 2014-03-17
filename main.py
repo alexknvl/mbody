@@ -220,8 +220,8 @@ def field_and_derivatives(x):
 def calc_derivatives(m, s, v, x, O, J):
     return (cross(O, s), -kReducedPlanckConstant / m * array(s * J)[0], v)
 
-always_adiabatic = True
-two_states = True
+always_adiabatic = False
+two_states = False
 
 def select_time_step(m, s, v, x, O, J):
     kMinStep = 1e-3
@@ -263,8 +263,8 @@ def integration_step(p):
     s, v, x, m = p.spin, p.velocity, p.position, p.mass
 
     F, J = field_and_derivatives(p.position)
-    O = F * kBohrMagneton / kReducedPlanckConstant
-    J = J * kBohrMagneton / kReducedPlanckConstant
+    O = F * 2 * kBohrMagneton / kReducedPlanckConstant
+    J = J * 2 * kBohrMagneton / kReducedPlanckConstant
 
     # If we are in adiabatic mode already, we assume that
     # spin is always parallel to the field
@@ -334,5 +334,11 @@ if __name__ == "__main__":
             #     print(i, p)
 
         if p.position[2] > 0.15:
-            print(p.position[0], p.position[1], p.position[2],
-                  p.velocity[0], p.velocity[1], p.velocity[2])
+            out = '\t'.join(map(unicode, p.position))
+            out += '\t' + '\t'.join(map(unicode, p.velocity))
+            if p.adiabaticMode:
+                out += '\t' + unicode(p.spin)
+            else:
+                out += '\t' + ' '.join(map(unicode, p.spin))
+                out += ' ' + unicode(norm(proj(field(p.position), p.spin)))
+            print(out)
