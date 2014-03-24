@@ -209,8 +209,8 @@ class Particle:
             (self.position, self.velocity, self.spin, self.adiabaticMode)
 
 def field(x):
-    return wire_loop_field(0.1, x[0], x[1], x[2]-0.05) + \
-           wire_loop_field(0.1, x[0], x[1], x[2]+0.05)
+    return (wire_loop_field(0.05, x[0], x[1], x[2]-0.05) + \
+           wire_loop_field(0.05, x[0], x[1], x[2]+0.05)) * 24000
 
 def field_and_derivatives(x):
     F = field(x)
@@ -227,6 +227,8 @@ def select_time_step(m, s, v, x, O, J):
     kMinStep = 1e-3
     kTimeDivider = 25
     kMinAdiabaticRatio = 10
+
+    kMinStep = min([0.001 / v[2], kMinStep])
 
     def good_float(f):
         return not isnan(f) and not isinf(f)
@@ -299,7 +301,15 @@ def integration_step(p):
     p.position += xd * dt
 
 if __name__ == "__main__":
-    for i in xrange(100000):
+    kTemp = 0.1
+
+    #print(sqrt(3 * kBoltzmannConstant * kTemp / kHydrogenMass))
+    #print(norm(field(array([0, 0, 0.00]))))
+    #print(norm(field(array([0, 0, 0.05]))))
+
+    target_count = 10000
+    good_count = 0
+    while good_count < target_count:
         p = Particle()
         p.mass = kHydrogenMass
 
@@ -307,16 +317,16 @@ if __name__ == "__main__":
         z = 0.05 + 1e-7
         p.position = array([x, y, z])
 
-        if two_states:
-            sign = -1 if randint(2) == 0 else 1
-            F = field(p.position)
-            p.spin = 1/2 * F / norm(F) * sign
-        else:
-            p.spin = array(random_point_on_sphere_surface(
-                radius=1/2, coordinates='cartesian'))
+        #if two_states:
+        sign = 1
+        F = field(p.position)
+        p.spin = 1/2 * F / norm(F) * sign
+        #else:
+        #    p.spin = array(random_point_on_sphere_surface(
+        #        radius=1/2, coordinates='cartesian'))
 
-        kTemp = 1e-3
         p.velocity = normal(size=3) * sqrt(kBoltzmannConstant * kTemp / p.mass)
+        v0 = norm(p.velocity)
 
         p.adiabaticMode = False
 
@@ -325,20 +335,12 @@ if __name__ == "__main__":
             b = norm(p.position[0:2]) < 0.10
             return a and b
 
-        count = 0
         while in_cylinder():
             integration_step(p)
 
-            # count += 1
-            # if count % 5000:
-            #     print(i, p)
-
-        if p.position[2] > 0.15:
-            out = '\t'.join(map(unicode, p.position))
-            out += '\t' + '\t'.join(map(unicode, p.velocity))
-            if p.adiabaticMode:
-                out += '\t' + unicode(p.spin)
-            else:
-                out += '\t' + ' '.join(map(unicode, p.spin))
-                out += ' ' + unicode(norm(proj(field(p.position), p.spin)))
+        if p.position[2] > 0.15 and norm(p.position[0:2]) < 0.05:
+            out = ' '.join(map(unicode, p.position))
+            out += ' ' + unicode(norm(p.velocity))
+            out += ' ' + unicode(v0)
             print(out)
+            good_count += 1

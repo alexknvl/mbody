@@ -1,69 +1,46 @@
-#!/usr/bin/env python
-import sys
-import numpy as np
-import matplotlib.pyplot as plt
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+from __future__ import division
+import matplotlib.pylab as plt
+from matplotlib.widgets import Slider, RadioButtons
 from matplotlib.colors import LogNorm
+import numpy as np
+import sys
 import scipy.optimize as so
 
-def find_confidence_interval(x, pdf, confidence_level):
-    return pdf[pdf > x].sum() - confidence_level
+if __name__ == "__main__":
+    data = np.genfromtxt(sys.argv[1], filling_values=[0, 0, 0, 0, 0])
+    bin_count = int(sys.argv[2])
 
-def density_contour(xdata, ydata, nbins_x, nbins_y, ax=None, **contour_kwargs):
-    """ Create a density contour plot.
+    xs = data.T[0]
+    ys = data.T[1]
 
-    Parameters
-    ----------
-    xdata : numpy.ndarray
-    ydata : numpy.ndarray
-    nbins_x : int
-        Number of bins along x dimension
-    nbins_y : int
-        Number of bins along y dimension
-    ax : matplotlib.Axes (optional)
-        If supplied, plot the contour to this axis. Otherwise, open a new figure
-    contour_kwargs : dict
-        kwargs to be passed to pyplot.contour()
-    """
+    v0 = data.T[3]
+    v1 = data.T[4]
 
-    H, xedges, yedges = np.histogram2d(xdata, ydata, bins=(nbins_x,nbins_y), normed=True)
-    x_bin_sizes = (xedges[1:] - xedges[:-1]).reshape((1,nbins_x))
-    y_bin_sizes = (yedges[1:] - yedges[:-1]).reshape((nbins_y,1))
+    v0_min = v0.min()
+    v0_max = v0.max()
 
-    pdf = (H*(x_bin_sizes*y_bin_sizes))
+    f, ax = plt.subplots()
+    ax.hist2d(xs, ys, bins=bin_count)
 
-    one_sigma = so.brentq(find_confidence_interval, 0., 1., args=(pdf, 0.68))
-    two_sigma = so.brentq(find_confidence_interval, 0., 1., args=(pdf, 0.95))
-    three_sigma = so.brentq(find_confidence_interval, 0., 1., args=(pdf, 0.99))
-    levels = [one_sigma, two_sigma, three_sigma]
+    def update_plot():
+        global v0_min, v0_max, ax
+        flag = [v0_min < v0[i] < v0_max for i in xrange(len(v0))]
+        xs1 = np.array([xs[i] for i in xrange(len(v0)) if flag[i]])
+        ys1 = np.array([ys[i] for i in xrange(len(v0)) if flag[i]])
+        ax.hist2d(xs1, ys1, bins=bin_count)
 
-    X, Y = 0.5*(xedges[1:]+xedges[:-1]), 0.5*(yedges[1:]+yedges[:-1])
-    Z = pdf.T
+    min_slider = Slider(plt.axes([0.1, 0.92, 0.8, 0.03]), 'v0_min', v0.min(), 200, valinit=v0.min())
+    max_slider = Slider(plt.axes([0.1, 0.95, 0.8, 0.03]), 'v0_max', v0.min(), 200, valinit=200)
+    def update_sliders(val):
+        global v0_min, v0_max
+        v0_min = min_slider.val
+        v0_max = max_slider.val
+        update_plot()
+        plt.draw()
 
-    if ax == None:
-        contour = plt.contour(X, Y, Z, levels=levels, origin="lower", **contour_kwargs)
-    else:
-        contour = ax.contour(X, Y, Z, levels=levels, origin="lower", **contour_kwargs)
+    min_slider.on_changed(update_sliders)
+    max_slider.on_changed(update_sliders)
 
-    return contour
-
-xs = []
-ys = []
-with open(sys.argv[1]) as f:
-    for line in f:
-        args = line.strip().split(' ')
-
-        if len(args) < 2:
-            continue
-
-        x, y = tuple(map(float, args[0:2]))
-
-        if x**2 + y**2 < 2 * 0.05**2:
-            xs.append(float(x))
-            ys.append(float(y))
-
-xs = np.array(xs)
-ys = np.array(ys)
-
-plt.hist2d(xs, ys, bins=int(sys.argv[2]))
-plt.colorbar()
-plt.show()
+    plt.show()
